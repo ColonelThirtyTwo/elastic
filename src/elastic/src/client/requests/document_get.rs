@@ -13,6 +13,7 @@ use crate::{
         requests::{
             Pending as BasePending,
             raw::RawRequestInner,
+            RequestInner,
             RequestBuilder,
         },
         responses::GetResponse,
@@ -58,6 +59,10 @@ pub struct GetRequestInner<TDocument> {
     ty: Type<'static>,
     id: Id<'static>,
     _marker: PhantomData<TDocument>,
+}
+
+impl<TDocument> RequestInner for GetRequestInner<TDocument> {
+    type Response = GetResponse<TDocument>;
 }
 
 /**

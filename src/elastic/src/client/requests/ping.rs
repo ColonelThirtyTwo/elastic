@@ -9,6 +9,7 @@ use crate::{
         requests::{
             Pending as BasePending,
             raw::RawRequestInner,
+            RequestInner,
             RequestBuilder,
         },
         responses::PingResponse,
@@ -37,6 +38,10 @@ pub type PingRequestBuilder<TSender> = RequestBuilder<TSender, PingRequestInner>
 
 #[doc(hidden)]
 pub struct PingRequestInner;
+
+impl RequestInner for PingRequestInner {
+    type Response = PingResponse;
+}
 
 /**
 # Ping request

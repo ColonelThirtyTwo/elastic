@@ -13,6 +13,7 @@ use crate::{
         requests::{
             Pending as BasePending,
             raw::RawRequestInner,
+            RequestInner,
             RequestBuilder,
         },
         responses::CommandResponse,
@@ -59,6 +60,10 @@ pub struct PutMappingRequestInner<TDocument> {
     index: Index<'static>,
     ty: Type<'static>,
     _marker: PhantomData<TDocument>,
+}
+
+impl<TDocument> RequestInner for PutMappingRequestInner<TDocument> {
+    type Response = CommandResponse;
 }
 
 /**

@@ -11,6 +11,7 @@ use crate::{
         requests::{
             Pending as BasePending,
             raw::RawRequestInner,
+            RequestInner,
             RequestBuilder,
         },
         responses::CommandResponse,
@@ -42,6 +43,10 @@ pub type IndexDeleteRequestBuilder<TSender> = RequestBuilder<TSender, IndexDelet
 #[doc(hidden)]
 pub struct IndexDeleteRequestInner {
     index: Index<'static>,
+}
+
+impl RequestInner for IndexDeleteRequestInner {
+    type Response = CommandResponse;
 }
 
 /**

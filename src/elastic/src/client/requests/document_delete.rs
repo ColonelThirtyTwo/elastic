@@ -12,6 +12,7 @@ use crate::{
         requests::{
             Pending as BasePending,
             raw::RawRequestInner,
+            RequestInner,
             RequestBuilder,
         },
         responses::DeleteResponse,
@@ -57,6 +58,10 @@ pub struct DeleteRequestInner<TDocument> {
     ty: Type<'static>,
     id: Id<'static>,
     _marker: PhantomData<TDocument>,
+}
+
+impl<TDocument> RequestInner for DeleteRequestInner<TDocument> {
+    type Response = DeleteResponse;
 }
 
 /**

@@ -22,6 +22,7 @@ use crate::{
         requests::{
             Pending as BasePending,
             raw::RawRequestInner,
+            RequestInner,
             RequestBuilder,
         },
         responses::{
@@ -84,6 +85,10 @@ pub struct BulkRequestInner<TBody, TResponse> {
     ty: Option<Type<'static>>,
     body: WrappedBody<TBody>,
     _marker: PhantomData<TResponse>,
+}
+
+impl<TBody, TResponse> RequestInner for BulkRequestInner<TBody, TResponse> {
+    type Response = BulkResponse;
 }
 
 /**

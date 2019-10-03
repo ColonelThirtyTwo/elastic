@@ -85,6 +85,16 @@ pub use self::{
 pub mod common;
 
 /**
+Trait for inner request object
+*/
+pub trait RequestInner {
+    /**
+    Inner type for the response of the request.
+    */
+    type Response;
+}
+
+/**
 A builder for a request.
 
 This structure wraps up a concrete REST API request type and lets you adjust parameters before sending it.
@@ -97,6 +107,7 @@ The `RequestBuilder` has two generic parameters:
 */
 pub struct RequestBuilder<TSender, TRequest>
 where
+    TRequest: RequestInner,
     TSender: Sender,
 {
     client: Client<TSender>,
@@ -112,6 +123,7 @@ The following methods can be called on any request builder, whether it's synchro
 impl<TSender, TRequest> RequestBuilder<TSender, TRequest>
 where
     TSender: Sender,
+    TRequest: RequestInner,
 {
     fn initial(client: Client<TSender>, req: TRequest) -> Self {
         RequestBuilder {
@@ -213,7 +225,10 @@ where
 
 The following methods can be called on any asynchronous request builder.
 */
-impl<TRequest> RequestBuilder<AsyncSender, TRequest> {
+impl<TRequest> RequestBuilder<AsyncSender, TRequest>
+where
+    TRequest: RequestInner,
+{
     /**
     Override the thread pool used for deserialisation for this request.
 

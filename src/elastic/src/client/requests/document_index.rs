@@ -13,6 +13,7 @@ use crate::{
         requests::{
             Pending as BasePending,
             raw::RawRequestInner,
+            RequestInner,
             RequestBuilder,
         },
         responses::IndexResponse,
@@ -59,6 +60,10 @@ pub struct IndexRequestInner<TDocument> {
     ty: Type<'static>,
     id: Option<Id<'static>>,
     doc: TDocument,
+}
+
+impl<TDocument> RequestInner for IndexRequestInner<TDocument> {
+    type Response = IndexResponse;
 }
 
 /**

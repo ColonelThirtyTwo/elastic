@@ -11,6 +11,7 @@ use crate::{
         requests::{
             Pending as BasePending,
             raw::RawRequestInner,
+            RequestInner,
             RequestBuilder,
         },
         responses::SqlQueryResponse,
@@ -48,6 +49,10 @@ pub type SqlRequestBuilder<TSender, TBody> = RequestBuilder<TSender, SqlRequestI
 #[doc(hidden)]
 pub struct SqlRequestInner<TBody> {
     body: TBody,
+}
+
+impl<TBody> RequestInner for SqlRequestInner<TBody> {
+    type Response = SqlQueryResponse;
 }
 
 /**

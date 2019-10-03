@@ -13,6 +13,7 @@ use crate::{
         requests::{
             Pending as BasePending,
             raw::RawRequestInner,
+            RequestInner,
             RequestBuilder,
         },
         responses::SearchResponse,
@@ -57,6 +58,10 @@ pub struct SearchRequestInner<TDocument, TBody> {
     ty: Option<Type<'static>>,
     body: TBody,
     _marker: PhantomData<TDocument>,
+}
+
+impl<TDocument, TBody> RequestInner for SearchRequestInner<TDocument, TBody> {
+    type Response = SearchResponse<TDocument>;
 }
 
 /**

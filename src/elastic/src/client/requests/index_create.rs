@@ -11,6 +11,7 @@ use crate::{
         requests::{
             Pending as BasePending,
             raw::RawRequestInner,
+            RequestInner,
             RequestBuilder,
         },
         responses::CommandResponse,
@@ -48,6 +49,10 @@ pub type IndexCreateRequestBuilder<TSender, TBody> =
 pub struct IndexCreateRequestInner<TBody> {
     index: Index<'static>,
     body: TBody,
+}
+
+impl<TBody> RequestInner for IndexCreateRequestInner<TBody> {
+    type Response = CommandResponse;
 }
 
 /**

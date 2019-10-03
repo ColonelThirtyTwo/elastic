@@ -7,7 +7,10 @@ use std::marker::PhantomData;
 
 use crate::{
     client::{
-        requests::RequestBuilder,
+        requests::{
+            RequestBuilder,
+            RequestInner,
+        },
         Client,
     },
     endpoints::Endpoint,
@@ -35,6 +38,10 @@ pub type RawRequestBuilder<TSender, TEndpoint, TBody> =
 pub struct RawRequestInner<TEndpoint, TBody> {
     endpoint: TEndpoint,
     _marker: PhantomData<TBody>,
+}
+
+impl<TEndpoint, TBody> RequestInner for RawRequestInner<TEndpoint, TBody> {
+    type Response = serde_json::Value; // TODO: revisit this
 }
 
 impl<TEndpoint, TBody> RawRequestInner<TEndpoint, TBody> {

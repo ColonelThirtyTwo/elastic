@@ -14,6 +14,7 @@ use crate::{
         requests::{
             Pending as BasePending,
             raw::RawRequestInner,
+            RequestInner,
             RequestBuilder,
         },
         responses::UpdateResponse,
@@ -69,6 +70,10 @@ pub struct UpdateRequestInner<TBody> {
     id: Id<'static>,
     body: TBody,
     _marker: PhantomData<TBody>,
+}
+
+impl<TBody> RequestInner for UpdateRequestInner<TBody> {
+    type Response = UpdateResponse;
 }
 
 /**
