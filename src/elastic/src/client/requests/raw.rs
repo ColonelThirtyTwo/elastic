@@ -103,8 +103,8 @@ where
     TSender: Sender,
     TEndpoint: Into<Endpoint<'static, TBody>>,
     TBody: Into<<TSender>::Body> + Send + 'static,
-    NodeAddresses<TSender>: NextParams,
-    <NodeAddresses<TSender> as NextParams>::Params: Into<TSender::Params> + Send + 'static,
+    NodeAddresses: NextParams<TSender>,
+    <NodeAddresses as NextParams<TSender>>::Params: Into<TSender::Params> + Send + 'static,
 {
     /**
     Send a `RawRequestBuilder`.
@@ -177,7 +177,7 @@ where
         let params = match self.params_builder.try_into_value() {
             TryIntoValue::Value(value) => SendableRequestParams::Value(value),
             TryIntoValue::Builder(builder) => SendableRequestParams::Builder {
-                params: client.addresses.next(),
+                params: client.addresses.next(&client.sender),
                 builder,
             },
         };

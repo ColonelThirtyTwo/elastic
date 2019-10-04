@@ -8,6 +8,7 @@ use std::{
 };
 
 use crate::{
+    client::responses::nodes_info::NodesInfoResponse,
     endpoints::Endpoint,
     error::{
         self,
@@ -28,6 +29,7 @@ use crate::{
             SendableRequest,
             SendableRequestParams,
             Sender,
+            sniffed_nodes::SniffedNodes,
         },
         SyncBody,
         SyncHttpRequest,
@@ -131,14 +133,26 @@ impl Sender for SyncSender {
     }
 }
 
-impl NextParams for NodeAddresses<SyncSender> {
+impl NextParams<SyncSender> for NodeAddresses {
     type Params = Params;
 
-    fn next(&self) -> Self::Params {
+    fn next(&self, sender: &SyncSender) -> Self::Params {
         match self.inner {
-            NodeAddressesInner::Static(ref nodes) => Params::new(nodes.next()),
-            NodeAddressesInner::Sniffed(ref sniffer) => Params::new(sniffer.next()),
+            NodeAddressesInner::Static(ref nodes) => Params::new(nodes.next(sender)),
+            NodeAddressesInner::Sniffed(ref sniffer) => Params::new(sniffer.next(sender)),
         }
+    }
+}
+
+impl NextParams<SyncSender> for SniffedNodes {
+    type Params = Result<RequestParams, Error>;
+
+    fn next(&self, sender: &SyncSender) -> Self::Params {
+        self.sync_next(|req| {
+            sender
+                .send(req)
+                .and_then(|res| res.into_response::<NodesInfoResponse>())
+        })
     }
 }
 

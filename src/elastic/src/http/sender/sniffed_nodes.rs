@@ -49,15 +49,11 @@ use crate::{
     http::{
         sender::{
             static_nodes::StaticNodes,
-            AsyncSender,
-            NextParams,
             NodeAddress,
             PreRequestParams,
             RequestParams,
             SendableRequest,
             SendableRequestParams,
-            Sender,
-            SyncSender,
         },
         DefaultBody,
     },
@@ -76,8 +72,7 @@ If updating the nodes fails for some reason then the request itself will also fa
 [node info request]: https://www.elastic.co/guide/en/elasticsearch/reference/current/cluster-nodes-info.html
 */
 #[derive(Clone)]
-pub struct SniffedNodes<TSender> {
-    sender: TSender,
+pub struct SniffedNodes {
     refresh_params: RequestParams,
     inner: Arc<RwLock<SniffedNodesInner>>,
 }
@@ -97,13 +92,13 @@ struct SniffedNodesInner {
     nodes: StaticNodes,
 }
 
-impl<TSender> SniffedNodes<TSender> {
+impl SniffedNodes {
     /**
     Get the next async address or refresh.
 
     This method takes a generic function that will resolve to a new set of node addresses.
     */
-    fn async_next<TRefresh, TRefreshFuture>(
+    pub fn async_next<TRefresh, TRefreshFuture>(
         &self,
         refresh: TRefresh,
     ) -> Box<dyn Future<Item = RequestParams, Error = Error> + Send>
@@ -133,7 +128,7 @@ impl<TSender> SniffedNodes<TSender> {
 
     This method takes a generic function that will resolve to a new set of node addresses.
     */
-    fn sync_next<TRefresh>(&self, refresh: TRefresh) -> Result<RequestParams, Error>
+    pub fn sync_next<TRefresh>(&self, refresh: TRefresh) -> Result<RequestParams, Error>
     where
         TRefresh: Fn(
             SendableRequest<NodesInfoRequest<'static>, RequestParams, DefaultBody>,
@@ -189,11 +184,10 @@ impl SniffedNodesBuilder {
 
     A `filter_path` url parameter will be added to the `refresh_parameters`.
     */
-    pub(crate) fn build<TSender>(
+    pub(crate) fn build(
         self,
         base_params: PreRequestParams,
-        sender: TSender,
-    ) -> SniffedNodes<TSender> {
+    ) -> SniffedNodes {
         let nodes = StaticNodes::round_robin(vec![self.base_url.clone()], base_params.clone());
         let wait = self.wait.unwrap_or_else(|| Duration::from_secs(90));
 
@@ -207,7 +201,6 @@ impl SniffedNodesBuilder {
             .url_param("filter_path", "nodes.*.http.publish_address");
 
         SniffedNodes {
-            sender: sender,
             refresh_params: refresh_params,
             inner: Arc::new(RwLock::new(SniffedNodesInner {
                 last_update: None,
@@ -234,7 +227,7 @@ Shared logic between sync and async methods.
 These methods definitely aren't intended to be made public.
 There are invariants that are shared between them that require they're called in specific ways.
 */
-impl<TSender> SniffedNodes<TSender> {
+impl SniffedNodes {
     /**
     Return a node address if the set of nodes is still current.
 
@@ -248,7 +241,7 @@ impl<TSender> SniffedNodes<TSender> {
 
             if !inner.should_refresh() {
                 // Return the next address without refreshing
-                let address = inner.nodes.next().map_err(error::request);
+                let address = inner.nodes.next_no_sender().map_err(error::request);
 
                 Some(address)
             } else {
@@ -265,7 +258,7 @@ impl<TSender> SniffedNodes<TSender> {
                 // This is unlikely but it's possible that a write lock
                 // gets acquired after another thread kicks off a refresh.
                 // In that case we don't want to do another one.
-                let address = inner.nodes.next().map_err(error::request);
+                let address = inner.nodes.next_no_sender().map_err(error::request);
 
                 Some(address)
             } else {
@@ -331,35 +324,11 @@ impl SniffedNodesInner {
             .collect();
 
         self.nodes.set(nodes)?;
-        self.nodes.next().map_err(error::request)
+        self.nodes.next_no_sender().map_err(error::request)
     }
 }
 
-impl<TSender> private::Sealed for SniffedNodes<TSender> {}
-
-impl NextParams for SniffedNodes<AsyncSender> {
-    type Params = Box<dyn Future<Item = RequestParams, Error = Error> + Send>;
-
-    fn next(&self) -> Self::Params {
-        self.async_next(|req| {
-            self.sender
-                .send(req)
-                .and_then(|res| res.into_response::<NodesInfoResponse>())
-        })
-    }
-}
-
-impl NextParams for SniffedNodes<SyncSender> {
-    type Params = Result<RequestParams, Error>;
-
-    fn next(&self) -> Self::Params {
-        self.sync_next(|req| {
-            self.sender
-                .send(req)
-                .and_then(|res| res.into_response::<NodesInfoResponse>())
-        })
-    }
-}
+impl private::Sealed for SniffedNodes {}
 
 #[cfg(test)]
 mod tests {
@@ -367,8 +336,8 @@ mod tests {
     use futures::Future;
     use serde_json;
 
-    fn sender() -> SniffedNodes<()> {
-        SniffedNodesBuilder::new(initial_address()).build(PreRequestParams::default(), ())
+    fn sender() -> SniffedNodes {
+        SniffedNodesBuilder::new(initial_address()).build(PreRequestParams::default())
     }
 
     fn expected_nodes() -> NodesInfoResponse {
@@ -402,7 +371,7 @@ mod tests {
     }
 
     fn assert_node_addresses_equal(
-        nodes: &SniffedNodes<()>,
+        nodes: &SniffedNodes,
         expected_addresses: Vec<&'static str>,
     ) {
         let inner = nodes.inner.read().expect("lock poisoned");
@@ -411,12 +380,12 @@ mod tests {
         assert_eq!(expected_addresses, actual);
     }
 
-    fn assert_refreshing_equal(nodes: &SniffedNodes<()>, refreshing: bool) {
+    fn assert_refreshing_equal(nodes: &SniffedNodes, refreshing: bool) {
         let inner = nodes.inner.read().expect("lock poisoned");
         assert_eq!(refreshing, inner.refreshing);
     }
 
-    fn assert_should_refresh_equal(nodes: &SniffedNodes<()>, should_refresh: bool) {
+    fn assert_should_refresh_equal(nodes: &SniffedNodes, should_refresh: bool) {
         let inner = nodes.inner.read().expect("lock poisoned");
         assert_eq!(should_refresh, inner.should_refresh());
     }

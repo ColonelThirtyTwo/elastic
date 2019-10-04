@@ -31,23 +31,30 @@ pub struct StaticNodes<TStrategy = RoundRobin> {
     params: PreRequestParams,
 }
 
-impl<TStrategy> NextParams for StaticNodes<TStrategy>
+impl<TStrategy, TSender> NextParams<TSender> for StaticNodes<TStrategy>
 where
     TStrategy: Strategy + Clone,
 {
     type Params = Result<RequestParams, Error>;
 
-    fn next(&self) -> Self::Params {
-        self.strategy
-            .try_next(&self.nodes)
-            .map(|address| RequestParams::from_parts(address, self.params.clone()))
-            .map_err(error::request)
+    fn next(&self, _sender: &TSender) -> Self::Params {
+        self.next_no_sender()
     }
 }
 
 impl<TStrategy> private::Sealed for StaticNodes<TStrategy> {}
 
-impl<TStrategy> StaticNodes<TStrategy> {
+impl<TStrategy> StaticNodes<TStrategy>
+where
+    TStrategy: Strategy + Clone,
+{
+    pub fn next_no_sender(&self) -> Result<RequestParams, Error> {
+        self.strategy
+            .try_next(&self.nodes)
+            .map(|address| RequestParams::from_parts(address, self.params.clone()))
+            .map_err(error::request)
+    }
+    
     pub(crate) fn set(&mut self, nodes: Vec<NodeAddress>) -> Result<(), Error> {
         if nodes.len() == 0 {
             Err(error::request(error::message(
@@ -138,7 +145,6 @@ impl Strategy for RoundRobin {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::http::sender::NextParams;
 
     fn round_robin(addresses: Vec<&'static str>) -> StaticNodes<RoundRobin> {
         StaticNodes::round_robin(addresses, PreRequestParams::default())
@@ -154,7 +160,7 @@ mod tests {
 
         for _ in 0..10 {
             for expected in expected_addresses() {
-                let actual = nodes.next().unwrap();
+                let actual = nodes.next_no_sender().unwrap();
 
                 assert_eq!(expected, actual.get_base_url());
             }
@@ -167,7 +173,7 @@ mod tests {
         let nodes = round_robin(vec![expected]);
 
         for _ in 0..10 {
-            let actual = nodes.next().unwrap();
+            let actual = nodes.next_no_sender().unwrap();
 
             assert_eq!(expected, actual.get_base_url());
         }
@@ -177,6 +183,6 @@ mod tests {
     fn round_robin_next_empty_fails() {
         let nodes = round_robin(vec![]);
 
-        assert!(nodes.next().is_err());
+        assert!(nodes.next_no_sender().is_err());
     }
 }

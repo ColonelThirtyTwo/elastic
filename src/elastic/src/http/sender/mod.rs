@@ -122,7 +122,7 @@ A set of request parameters are fetched before each HTTP request.
 The `NextParams` trait makes it possible to load balance requests between multiple nodes in an Elasticsearch cluster.
 Out of the box `elastic` provides implementations for a static set of nodes or nodes sniffed from the [Nodes Stats API]().
 */
-pub trait NextParams: private::Sealed + Clone {
+pub trait NextParams<TSender>: Clone {
     /**
     The kind of parameters produces.
 
@@ -131,7 +131,10 @@ pub trait NextParams: private::Sealed + Clone {
     type Params;
 
     /** Get a set of request parameters. */
-    fn next(&self) -> Self::Params;
+    fn next(&self, sender: &TSender) -> Self::Params
+    where
+        TSender: Sender,
+    ;
 }
 
 /**
@@ -159,30 +162,30 @@ where
 A common container for a source of node addresses.
 */
 #[derive(Clone)]
-pub struct NodeAddresses<TSender> {
-    inner: NodeAddressesInner<TSender>,
+pub struct NodeAddresses {
+    inner: NodeAddressesInner,
 }
 
-impl<TSender> NodeAddresses<TSender> {
+impl NodeAddresses {
     pub(crate) fn static_nodes(nodes: StaticNodes) -> Self {
         NodeAddresses {
             inner: NodeAddressesInner::Static(nodes),
         }
     }
 
-    pub(crate) fn sniffed_nodes(nodes: SniffedNodes<TSender>) -> Self {
+    pub(crate) fn sniffed_nodes(nodes: SniffedNodes) -> Self {
         NodeAddresses {
             inner: NodeAddressesInner::Sniffed(nodes),
         }
     }
 }
 
-impl<TSender> private::Sealed for NodeAddresses<TSender> {}
+impl private::Sealed for NodeAddresses {}
 
 #[derive(Clone)]
-enum NodeAddressesInner<TSender> {
+enum NodeAddressesInner {
     Static(StaticNodes),
-    Sniffed(SniffedNodes<TSender>),
+    Sniffed(SniffedNodes),
 }
 
 pub(crate) enum NodeAddressesBuilder {
@@ -227,11 +230,10 @@ impl Default for NodeAddressesBuilder {
 }
 
 impl NodeAddressesBuilder {
-    pub(crate) fn build<TSender>(
+    pub(crate) fn build(
         self,
         params: PreRequestParams,
-        sender: TSender,
-    ) -> NodeAddresses<TSender> {
+    ) -> NodeAddresses {
         match self {
             NodeAddressesBuilder::Static(nodes) => {
                 let nodes = StaticNodes::round_robin(nodes, params);
@@ -241,7 +243,7 @@ impl NodeAddressesBuilder {
             NodeAddressesBuilder::Sniffed(builder) => {
                 let nodes = builder
                     .into_value(|node| SniffedNodesBuilder::new(node))
-                    .build(params, sender);
+                    .build(params);
 
                 NodeAddresses::sniffed_nodes(nodes)
             }

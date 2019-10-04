@@ -22,6 +22,7 @@ use tokio_threadpool::{
 };
 
 use crate::{
+    client::responses::nodes_info::NodesInfoResponse,
     endpoints::Endpoint,
     error::{
         self,
@@ -42,6 +43,7 @@ use crate::{
             SendableRequest,
             SendableRequestParams,
             Sender,
+            sniffed_nodes::SniffedNodes,
         },
         AsyncBody,
         AsyncHttpRequest,
@@ -193,14 +195,26 @@ impl Sender for AsyncSender {
     }
 }
 
-impl NextParams for NodeAddresses<AsyncSender> {
+impl NextParams<AsyncSender> for NodeAddresses {
     type Params = PendingParams;
 
-    fn next(&self) -> Self::Params {
+    fn next(&self, sender: &AsyncSender) -> Self::Params {
         match self.inner {
-            NodeAddressesInner::Static(ref nodes) => PendingParams::new(nodes.next().into_future()),
-            NodeAddressesInner::Sniffed(ref sniffer) => PendingParams::new(sniffer.next()),
+            NodeAddressesInner::Static(ref nodes) => PendingParams::new(nodes.next(sender).into_future()),
+            NodeAddressesInner::Sniffed(ref sniffer) => PendingParams::new(sniffer.next(sender)),
         }
+    }
+}
+
+impl NextParams<AsyncSender> for SniffedNodes {
+    type Params = Box<dyn Future<Item = RequestParams, Error = Error> + Send>;
+
+    fn next(&self, sender: &AsyncSender) -> Self::Params {
+        self.async_next(|req| {
+            sender
+                .send(req)
+                .and_then(|res| res.into_response::<NodesInfoResponse>())
+        })
     }
 }
 

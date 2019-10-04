@@ -632,7 +632,7 @@ tokio::runtime::current_thread::block_on_all(response_future)?;
 #[derive(Clone)]
 pub struct Client<TSender> {
     sender: TSender,
-    addresses: NodeAddresses<TSender>,
+    addresses: NodeAddresses,
 }
 
 impl<TSender> Client<TSender>
